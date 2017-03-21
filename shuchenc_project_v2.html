@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!Shucheng Chao 12-780 Project>
+<html>
+<head>
+	<link rel="stylesheet" href="project_style.css">
+	<script src="libraries/jquery-1.11.3.min.js"></script>
+	<script src="libraries/p5.js"></script>
+	<script src="libraries/numeric-1.2.6.js"></script>
+	<script src="libraries/p5.dom.js"></script>
+	<script src="libraries/html2canvas.js"></script>
+	<script language="javascript" type="text/javascript" src="sketch.js"></script>
+	<script language="javascript" type="text/javascript" src="balls.js"></script>
+	<script language="javascript" type="text/javascript" src="youtubeAPI.js"></script>
+</head>
+
+<body onload=onYouTubeIframeAPIReady()>
+<h2> Pool path finder  - Shucheng Chao 12-780 final project</h2>
+<form onsubmit="go_get(); return false;" >
+ <input type="text"  id="yourtextfield"/>
+ <input type="submit" value="Search Playlists" />
+</form>
+<br>
+<!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
+
+<iframe id="existing-iframe-example"
+        width="640" height="360"
+        src="https://www.youtube.com/embed/3OCYkF1yp-Q?enablejsapi=1&showinfo=0&controls=1&autohide=0"
+        frameborder="0"
+        style="border: solid 4px #37474F"
+></iframe>
+<!-- <canvas id="canvas1" width="640" height="320"> </canvas> -->
+<br>
+<button id="select_anchor" onclick="chooseAnchor()"> Select Anchors </button>
+<button id="matrix" onclick="getH()"> Get H </button>
+<button id="corresponding_points" onclick="corres_points()"> Draw Corres-points </button>
+<button id="corresponding_lines" onclick="corres_lines()"> Draw Corres-lines </button>
+<button id="clear" onclick="clearALL()"> Clear </button>
+
+<br>
+
+
+</body>
+</html>

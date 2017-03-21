@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!Shucheng Chao 12-780 Project>
+<html>
+<head>
+	<link rel="stylesheet" href="project_style.css">
+	<script src="jquery-1.11.3.min.js"></script>
+	<script src="html2canvas.js"></script>
+</head>
+
+<body>
+<h1> Pool path finder </h1> 
+<h2> Shucheng Chao 12-780 final project </h2>
+<!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
+
+<iframe id="existing-iframe-example"
+        width="640" height="360"
+        src="https://www.youtube.com/embed/3OCYkF1yp-Q?enablejsapi=1"
+        frameborder="0"
+        style="border: solid 4px #37474F"
+></iframe>
+
+<div id="existing-iframe-example"></div>
+<br>
+<a href = 'javascript:getScreenshot()' id = "screen_shot"> Get Screenshot </a>
+<br>
+<div id = 'box1'> </div>
+
+<script type="text/javascript">
+  var tag = document.createElement('script');
+  tag.id = 'iframe-demo';
+  tag.src = 'https://www.youtube.com/iframe_api';
+  var firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+  var player;
+  function onYouTubeIframeAPIReady() {
+    player = new YT.Player('existing-iframe-example', {
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange
+        }
+    });
+  }
+  function onPlayerReady(event) {
+    document.getElementById('existing-iframe-example').style.borderColor = '#FF6D00';
+  }
+  function changeBorderColor(playerStatus) {
+    var color;
+    if (playerStatus == -1) {
+      color = "#37474F"; // unstarted = gray
+    } else if (playerStatus == 0) {
+      color = "#FFFF00"; // ended = yellow
+    } else if (playerStatus == 1) {
+      color = "#33691E"; // playing = green
+    } else if (playerStatus == 2) {
+      color = "#DD2C00"; // paused = red
+    } else if (playerStatus == 3) {
+      color = "#AA00FF"; // buffering = purple
+    } else if (playerStatus == 5) {
+      color = "#FF6DOO"; // video cued = orange
+    }
+    if (color) {
+      document.getElementById('existing-iframe-example').style.borderColor = color;
+    }
+  }
+  function onPlayerStateChange(event) {
+    changeBorderColor(event.data);
+  }
+  
+  function getScreenshot(){
+    html2canvas($('existing-iframe-example'),{
+	  onrendered: function(canvas){
+		$('#box1').html("");
+		$("#box1").append(canvas);
+	  }
+	});
+  }
+</script>
+</body>
+</html>

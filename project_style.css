@@ -1,0 +1,22 @@
+#box1 {
+	width:640px;
+	height:360px;
+	border-style:solid;
+	border-width:2px;
+}
+
+button{
+	width: 163px;
+	height: 60px;
+	background-color: cornflowerblue;
+}
+
+#canvas1{
+	width: 648px;
+	height: 368px;
+	position: fixed;
+    top: 127.3;
+    left: 7.99;
+	background-color: aqua;
+	opacity: 0.25;
+}
