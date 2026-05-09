@@ -34,7 +34,7 @@ function changeBorderColor(playerStatus) {
     } else if (playerStatus == 3) {
         color = "#AA00FF"; // buffering = purple
     } else if (playerStatus == 5) {
-        color = "#FF6DOO"; // video cued = orange
+        color = "#FF6D00"; // video cued = orange
     }
     if (color) {
         document.getElementById('existing-iframe-example').style.borderColor = color;
@@ -43,13 +43,4 @@ function changeBorderColor(playerStatus) {
 
 function onPlayerStateChange(event) {
     changeBorderColor(event.data);
-}
-
-function getScreenshot(){
-    html2canvas($('#canvas1'),{
-        onrendered: function(canvas){
-            $('#box1').html("");
-            $("#box1").append(canvas);
-        }
-    });
 }
