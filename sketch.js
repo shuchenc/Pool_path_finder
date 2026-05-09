@@ -128,7 +128,7 @@ function normalizePts(pts) {
     for (const p of pts) { cx += p.x; cy += p.y; }
     cx /= n; cy /= n;
     let meanD = 0;
-    for (const p of pts) meanD += Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2);
+    for (const p of pts) meanD += Math.hypot(p.x - cx, p.y - cy);
     meanD /= n;
     const s = Math.SQRT2 / meanD;
     return {
@@ -143,7 +143,7 @@ function getH() {
         return;
     }
 
-    // Normalize coordinates before DLT for numerical stability
+    // Normalize for numerical stability (prevents ill-conditioning from pixel-scale coords)
     const { T: T1, normPts: np1 } = normalizePts(points);
     const { T: T2, normPts: np2 } = normalizePts(points2);
 
@@ -154,61 +154,37 @@ function getH() {
         A[2*r]   = [-x, -y, -1,  0,  0,  0, x*xp, y*xp, xp];
         A[2*r+1] = [ 0,  0,  0, -x, -y, -1, x*yp, y*yp, yp];
     }
-    const aTrans = numeric.transpose(A);
-    const { U: hs, S: sv } = numeric.svd(aTrans);
 
-    // DEBUG: diagnose U shape and SV ordering
-    console.group('SVD diagnostic');
+    // SVD of A^T (9×8) returns economy U (9×8) — the true null vector of A
+    // is the *missing* 9th column and cannot be recovered from this decomposition.
+    // Fix: use SVD of A^T·A (9×9 square). numeric.js returns full 9×9 U for square
+    // input, so the eigenvector with eigenvalue ≈ 0 is present and is the null vector.
+    const ATA = numeric.dotMMsmall(numeric.transpose(A), A);  // 9×9
+    const { U: hs, S: sv } = numeric.svd(ATA);
+
+    // DEBUG — remove before merge
+    console.group('getH debug');
     console.log(`U shape: ${hs.length}×${hs[0].length}`);
-    console.log('Singular values:', sv.map((v, i) => `[${i}]=${v.toFixed(6)}`).join('  '));
-
-    // Try every column and log reprojection — the null vector gives ~0 error
-    for (let col = 0; col < hs[0].length; col++) {
-        const Htry = numeric.dotMMsmall(
-            numeric.inv(T2),
-            numeric.dotMMsmall(
-                [[hs[0][col], hs[1][col], hs[2][col]],
-                 [hs[3][col], hs[4][col], hs[5][col]],
-                 [hs[6][col], hs[7][col], hs[8][col]]],
-                T1
-            )
-        );
-        const totalErr = points.reduce((s, p, i) => {
-            const m = applyH(Htry, p.x, p.y);
-            return s + Math.hypot(m[0] - points2[i].x, m[1] - points2[i].y);
-        }, 0);
-        console.log(`  col ${col}: total reprojection error = ${totalErr.toFixed(4)}`);
-    }
-
-    // Select column with smallest total reprojection error (robust to SV ordering)
-    let bestCol = 0, bestErr = Infinity;
-    for (let col = 0; col < hs[0].length; col++) {
-        const Htry = numeric.dotMMsmall(
-            numeric.inv(T2),
-            numeric.dotMMsmall(
-                [[hs[0][col], hs[1][col], hs[2][col]],
-                 [hs[3][col], hs[4][col], hs[5][col]],
-                 [hs[6][col], hs[7][col], hs[8][col]]],
-                T1
-            )
-        );
-        const err = points.reduce((s, p, i) => {
-            const m = applyH(Htry, p.x, p.y);
-            return s + Math.hypot(m[0] - points2[i].x, m[1] - points2[i].y);
-        }, 0);
-        if (err < bestErr) { bestErr = err; bestCol = col; }
-    }
-    console.log(`→ Selected column ${bestCol} (total error: ${bestErr.toFixed(4)})`);
-    console.groupEnd();
+    console.log('Eigenvalues of A^T·A:', sv.map((v, i) => `[${i}]=${v.toFixed(6)}`).join('  '));
+    const minCol = sv.reduce((m, v, i) => v < sv[m] ? i : m, 0);
+    console.log(`Null vector at col ${minCol}, eigenvalue = ${sv[minCol].toFixed(8)}`);
 
     const Hn = [
-        [hs[0][bestCol], hs[1][bestCol], hs[2][bestCol]],
-        [hs[3][bestCol], hs[4][bestCol], hs[5][bestCol]],
-        [hs[6][bestCol], hs[7][bestCol], hs[8][bestCol]],
+        [hs[0][minCol], hs[1][minCol], hs[2][minCol]],
+        [hs[3][minCol], hs[4][minCol], hs[5][minCol]],
+        [hs[6][minCol], hs[7][minCol], hs[8][minCol]],
     ];
     H    = numeric.dotMMsmall(numeric.inv(T2), numeric.dotMMsmall(Hn, T1));
     invH = numeric.inv(H);
     hComputed = true;
+
+    console.log('Reprojection check (should be < 0.5 px per point):');
+    points.forEach((p, i) => {
+        const m = applyH(H, p.x, p.y), d = points2[i];
+        console.log(`  [${i}] (${m[0].toFixed(2)},${m[1].toFixed(2)}) vs (${d.x.toFixed(2)},${d.y.toFixed(2)})  err=(${(m[0]-d.x).toFixed(3)},${(m[1]-d.y).toFixed(3)})`);
+    });
+    console.groupEnd();
+
     updateModeUI();
 }
 
