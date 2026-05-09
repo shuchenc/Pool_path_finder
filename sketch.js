@@ -282,9 +282,24 @@ function go_get() {
     const bareId     = /^[A-Za-z0-9_-]{11}$/.test(raw) ? raw : null;
     const videoId    = (watchMatch || shortMatch || embedMatch || [null, bareId])[1];
 
-    document.getElementById('existing-iframe-example').src = videoId
-        ? `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1`
-        : `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(raw)}`;
+    if (videoId) {
+        document.getElementById('existing-iframe-example').src =
+            `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1`;
+        return;
+    }
+
+    // TODO: keyword search via YouTube Data API v3
+    //   - listType=search embed URL was deprecated by YouTube in Nov 2020 and no longer works
+    //   - Requires a YouTube Data API v3 key (100 units/request, 10 000 units/day free)
+    //   - Flow: fetch /youtube/v3/search?q=...&type=video&key=KEY
+    //           → show thumbnail results panel
+    //           → user clicks a result → loadVideoById(videoId)
+    //   - API key should be stored in localStorage and configurable via a settings field
+    const helpEl = document.getElementById('help-text');
+    if (helpEl) {
+        helpEl.className = 'help-text warning';
+        helpEl.textContent = '⚠ Keyword search requires a YouTube Data API v3 key (not yet configured). Paste a video URL instead.';
+    }
 }
 
 // --- Bootstrap ---
