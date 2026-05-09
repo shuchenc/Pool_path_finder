@@ -1,242 +1,190 @@
-/**
- * Created by Shucheng on 12/8/2016.
- */
-var canvas;
-var balls = [];
-var balls2 = [];
-var points = [];
-var points2 = [];
-var lines = [];
-var lines2 = [];
-var cor_balls = [];
-var cor_balls2 = [];
-var cor_lines = [];
-var cor_lines2 = [];
-var elems = [balls, balls2, points, points2, lines, lines2,
-            cor_balls, cor_balls2, cor_lines, cor_lines2];
-var mode = 0;
-var line_clicks = [[],[]];
-var line_clicks2 = [[],[]];
-var clicked = false;
-var A = numeric.rep([8,9],0);
-var H = numeric.rep([3,3],1);
-var invH = numeric.rep([3,3],1);
+let canvas;
+
+// Drawing element collections
+const balls       = [], balls2      = [];
+const points      = [], points2     = [];
+const lines       = [], lines2      = [];
+const corBalls    = [], corBalls2   = [];
+const corLines    = [], corLines2   = [];
+
+const allElems = [balls, balls2, points, points2, lines, lines2, corBalls, corBalls2, corLines, corLines2];
+
+// Interaction state
+let mode = 0;                        // 0=free 1=anchor 2=corres-points 3=corres-lines
+let lineClicks  = [[], []];
+let lineClicks2 = [[], []];
+let clicked = false;
+
+// Homography matrices (numeric.js plain arrays)
+let A    = numeric.rep([8, 9], 0);
+let H    = numeric.rep([3, 3], 1);
+let invH = numeric.rep([3, 3], 1);
+
+// --- p5.js lifecycle ---
 
 function setup() {
-    // setup code
-    canvas = createCanvas(840,320);
+    canvas = createCanvas(840, 320);
     background('rgba(200,200,200,0.2)');
-    //background(poolTable, 100);
     const iframe = document.getElementById('existing-iframe-example');
     const rect = iframe.getBoundingClientRect();
     canvas.position(rect.left + window.scrollX + 4, rect.top + window.scrollY + 4);
-    // canvas.style('z-index', '-1');
-    loadImage("images/PoolTableReferenceTop.jpg", function(img) {
-        image(img, 660, 0);
-    });
+    loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0));
+}
+
+function draw() {
+    for (const group of allElems) {
+        for (const elem of group) elem.display();
+    }
 }
 
 function mousePressed() {
-    var oX = mouseX;
-    var oY = mouseY;
-    console.log(mode);
-    if (mode == 0) {
-        if (oX >= 0 && oX <= 840 &&
-            oY >= 0 && oY <= 320) {
-            var b = new Ball(oX, oY, 3, color(255));
-            balls.push(b);
-            console.log(balls);
+    const oX = mouseX;
+    const oY = mouseY;
+
+    if (mode === 0) {
+        if (inCanvas(oX, oY)) {
+            balls.push(new Ball(oX, oY, 3, color(255)));
         }
-    } else if (mode == 1) {
-        if (oX >= 0 && oX <= 640 &&
-            oY >= 0 && oY <= 320) {
-            var p1 = new Ball(oX, oY, 3, color(points.length*60));
-            points.push(p1);
-            console.log(points, lines);
-            if (points.length == 2) {
-                var line11  = new Line(points[0].x, points[0].y,
-                points[1].x, points[1].y, color(100,0,0));
-                lines.push(line11);
-            } else if (points.length == 4) {
-                var line12  = new Line(points[2].x, points[2].y,
-                points[3].x, points[3].y, color(0,100,0));
-                lines.push(line12);
-            }
-        } else if (oX >= 660 && oX <= 840 &&
-                    oY >= 0 && oY <= 320) {
-            var p2 = new Ball(oX, oY, 1, color(points2.length*60));
-            points2.push(p2);
-            console.log(points2);
-            if (points2.length == 2) {
-                var line21  = new Line(points2[0].x, points2[0].y,
-                points2[1].x, points2[1].y, color(100,0,0));
-                lines2.push(line21);
-            } else if (points2.length == 4) {
-                var line22  = new Line(points2[2].x, points2[2].y,
-                points2[3].x, points2[3].y, color(0,100,0));
-                lines2.push(line22);
-            }
+    } else if (mode === 1) {
+        handleAnchorClick(oX, oY);
+    } else if (mode === 2) {
+        handleCorresPointClick(oX, oY);
+    } else if (mode === 3) {
+        handleCorresLineClick(oX, oY);
+    }
+}
+
+// --- Mode handlers ---
+
+function handleAnchorClick(oX, oY) {
+    if (inVideoArea(oX, oY)) {
+        const p = new Ball(oX, oY, 3, color(points.length * 60));
+        points.push(p);
+        if (points.length === 2) lines.push(new Line(points[0].x, points[0].y, points[1].x, points[1].y, color(100, 0, 0)));
+        if (points.length === 4) lines.push(new Line(points[2].x, points[2].y, points[3].x, points[3].y, color(0, 100, 0)));
+    } else if (inReferenceArea(oX, oY)) {
+        const p = new Ball(oX, oY, 1, color(points2.length * 60));
+        points2.push(p);
+        if (points2.length === 2) lines2.push(new Line(points2[0].x, points2[0].y, points2[1].x, points2[1].y, color(100, 0, 0)));
+        if (points2.length === 4) lines2.push(new Line(points2[2].x, points2[2].y, points2[3].x, points2[3].y, color(0, 100, 0)));
+    }
+}
+
+function handleCorresPointClick(oX, oY) {
+    const col = color(random(0, 255), random(0, 255), random(0, 255), 50);
+    if (inVideoArea(oX, oY)) {
+        const c2 = applyH(H, oX, oY);
+        corBalls.push(new Ball(oX, oY, 3, col));
+        corBalls2.push(new Ball(c2[0], c2[1], 4, col));
+    } else if (inReferenceArea(oX, oY)) {
+        const c1 = applyH(invH, oX, oY);
+        corBalls.push(new Ball(c1[0], c1[1], 3, col));
+        corBalls2.push(new Ball(oX, oY, 4, col));
+    }
+}
+
+function handleCorresLineClick(oX, oY) {
+    if (inVideoArea(oX, oY)) {
+        const mapped = applyH(H, oX, oY);
+        if (!clicked) {
+            lineClicks[0]  = [oX, oY];
+            lineClicks2[0] = mapped;
+            clicked = true;
+        } else {
+            lineClicks[1]  = [oX, oY];
+            lineClicks2[1] = mapped;
+            clicked = false;
+            pushLinePair();
         }
-    } else if (mode == 2) {
-        var ball_color;
-        if (oX >= 0 && oX <= 640 &&
-            oY >= 0 && oY <= 320) {
-            ball_color = color(random(0,255),random(0,255),random(0,255),25);
-            var cb1 = new Ball(oX, oY, 3, ball_color);
-            var coords1 = numeric.transpose([[oX,oY,1]]);
-            var coords2 = numeric.dotMMsmall(H, coords1);
-            console.log(oX, oY, coords1, coords2);
-            console.log(coords2[0][0]/coords2[2][0], coords2[1][0]/coords2[2][0]);
-            var cb2 = new Ball((coords2[0][0]/coords2[2][0]), (coords2[1][0]/coords2[2][0]), 4, ball_color);
-            cor_balls.push(cb1);
-            cor_balls2.push(cb2);
-        } else if (oX >= 660 && oX <= 840 &&
-                    oY >= 0 && oY <= 320) {
-            ball_color = color(random(0,255),random(0,255),random(0,255),75);
-            cb2 = new Ball(oX, oY, 4, ball_color);
-            coords2 = numeric.transpose([[oX,oY,1]]);
-            coords1 = numeric.dotMMsmall(invH, coords2);
-            cb1 = new Ball(coords1[0][0]/coords1[2][0], coords1[1][0]/coords1[2][0], 3, ball_color);
-            console.log(coords2, coords1);
-            cor_balls.push(cb1);
-            cor_balls2.push(cb2);
-        }
-    } else if (mode == 3) {
-        var cor_l1;
-        var cor_l2;
-        if (oX >= 0 && oX <= 640 &&
-            oY >= 0 && oY <= 320) {
-            if (!clicked) {
-                line_clicks[0] = [oX,oY];
-                coords1 = numeric.transpose([[oX,oY,1]]);
-                coords2 = numeric.dotMMsmall(H, coords1);
-                line_clicks2[0] = [coords2[0][0]/coords2[2][0], coords2[1][0]/coords2[2][0]];
-                clicked = true;
-            } else {
-                line_clicks[1] = [oX,oY];
-                coords1 = numeric.transpose([[oX,oY,1]]);
-                coords2 = numeric.dotMMsmall(H, coords1);
-                line_clicks2[1] = [coords2[0][0]/coords2[2][0], coords2[1][0]/coords2[2][0]];
-                clicked = false;
-                cor_l1 = new Line(line_clicks[0][0], line_clicks[0][1], line_clicks[1][0], line_clicks[1][1], color(0,200,0));
-                cor_l2 = new Line(line_clicks2[0][0], line_clicks2[0][1], line_clicks2[1][0], line_clicks2[1][1], color(0,0,200));
-                cor_lines.push(cor_l1);
-                cor_lines2.push(cor_l2);
-            }
-        } else if (oX >= 660 && oX <= 840 &&
-                    oY >= 0 && oY <= 320) {
-            if (!clicked) {
-                line_clicks2[0] = [oX,oY];
-                coords2 = numeric.transpose([[oX,oY,1]]);
-                coords1 = numeric.dotMMsmall(invH, coords2);
-                line_clicks[0] = [coords1[0][0]/coords1[2][0], coords1[1][0]/coords1[2][0]];
-                clicked = true;
-            } else {
-                line_clicks2[1] = [oX,oY];
-                coords2 = numeric.transpose([[oX,oY,1]]);
-                coords1 = numeric.dotMMsmall(invH, coords2);
-                line_clicks[1] = [coords1[0][0]/coords1[2][0], coords1[1][0]/coords1[2][0]];
-                clicked = false;
-                cor_l1 = new Line(line_clicks[0][0], line_clicks[0][1], line_clicks[1][0], line_clicks[1][1], color(0,200,0));
-                cor_l2 = new Line(line_clicks2[0][0], line_clicks2[0][1], line_clicks2[1][0], line_clicks2[1][1], color(0,0,200));
-                cor_lines.push(cor_l1);
-                cor_lines2.push(cor_l2);
-            }
+    } else if (inReferenceArea(oX, oY)) {
+        const mapped = applyH(invH, oX, oY);
+        if (!clicked) {
+            lineClicks2[0] = [oX, oY];
+            lineClicks[0]  = mapped;
+            clicked = true;
+        } else {
+            lineClicks2[1] = [oX, oY];
+            lineClicks[1]  = mapped;
+            clicked = false;
+            pushLinePair();
         }
     }
 }
 
-function chooseAnchor() {
-    points = [];
-    points2 = [];
-    mode = 1;
+function pushLinePair() {
+    corLines.push(new Line(lineClicks[0][0],  lineClicks[0][1],  lineClicks[1][0],  lineClicks[1][1],  color(0, 200, 0)));
+    corLines2.push(new Line(lineClicks2[0][0], lineClicks2[0][1], lineClicks2[1][0], lineClicks2[1][1], color(0, 0, 200)));
 }
 
-function corres_points() {
-    mode = 2;
-}
-
-function corres_lines() {
-    mode = 3;
-}
+// --- Homography computation ---
 
 function getH() {
-    console.log(A,H,invH);
     if (points.length < 4 || points2.length < 4) {
-        alert("Not enough points selected!");
+        alert('Not enough points selected!');
         return;
     }
-    for (var r=0; r<4; r++) {
-        A[2*r][0] = -points[r].x; //-x
-        A[2*r][1] = -points[r].y; //-y
-        A[2*r][2] = -1;
-        A[2*r][6] = points[r].x * (points2[r].x); //xx'
-        A[2*r][7] = points[r].y * (points2[r].x); //yx'
-        A[2*r][8] = (points2[r].x); //x'
-
-        A[2*r+1][3] = -points[r].x; //-x
-        A[2*r+1][4] = -points[r].y; //-y
-        A[2*r+1][5] = -1;
-        A[2*r+1][6] = points[r].x * points2[r].y; //xy'
-        A[2*r+1][7] = points[r].y * points2[r].y; //yy'
-        A[2*r+1][8] = points2[r].y; //y'
+    A = numeric.rep([8, 9], 0);
+    for (let r = 0; r < 4; r++) {
+        const x = points[r].x, y = points[r].y;
+        const xp = points2[r].x, yp = points2[r].y;
+        A[2*r]   = [-x, -y, -1,  0,  0,  0, x*xp, y*xp, xp];
+        A[2*r+1] = [ 0,  0,  0, -x, -y, -1, x*yp, y*yp, yp];
     }
-    console.log(A);
-    var A_trans = numeric.transpose(A); //numeric.js requires m>n
-    var result = numeric.svd(A_trans);
-    var hs = result["U"]; //U for A_trans = V_trans for A
-    H[0][0] = hs[0][7];
-    H[0][1] = hs[1][7];
-    H[0][2] = hs[2][7];
-    H[1][0] = hs[3][7];
-    H[1][1] = hs[4][7];
-    H[1][2] = hs[5][7];
-    H[2][0] = hs[6][7];
-    H[2][1] = hs[7][7];
-    H[2][2] = hs[8][7];
-
-    console.log(result, hs ,H);
-
+    const aTrans = numeric.transpose(A);
+    const { U: hs } = numeric.svd(aTrans);
+    H = [
+        [hs[0][7], hs[1][7], hs[2][7]],
+        [hs[3][7], hs[4][7], hs[5][7]],
+        [hs[6][7], hs[7][7], hs[8][7]],
+    ];
     invH = numeric.inv(H);
-    alert("Transformation matrix calculated!");
+    alert('Transformation matrix calculated!');
 }
+
+// --- Helpers ---
+
+function applyH(mat, x, y) {
+    const v = numeric.dotMMsmall(mat, [[x], [y], [1]]);
+    return [v[0][0] / v[2][0], v[1][0] / v[2][0]];
+}
+
+function inCanvas(x, y)        { return x >= 0 && x <= 840 && y >= 0 && y <= 320; }
+function inVideoArea(x, y)     { return x >= 0 && x <= 640 && y >= 0 && y <= 320; }
+function inReferenceArea(x, y) { return x >= 660 && x <= 840 && y >= 0 && y <= 320; }
+
+function chooseAnchor()  { points.length = 0; points2.length = 0; mode = 1; updateModeUI(); }
+function corres_points() { mode = 2; updateModeUI(); }
+function corres_lines()  { mode = 3; updateModeUI(); }
 
 function clearALL() {
     clear();
     background('rgba(200,200,200,0.2)');
-    loadImage("images/PoolTableReferenceTop.jpg", function(img) {
-        image(img, 660, 0);
-    });
-    for (var i=0; i<elems.length; i++) {
-        elems[i].splice(0,elems[i].length);
-    }
+    loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0));
+    for (const group of allElems) group.length = 0;
     mode = 0;
+    updateModeUI();
 }
 
-function draw() {
-    //draw code
-    for (var i=0; i<elems.length; i++) {
-        var e = elems[i];
-        for (var j=0; j<e.length; j++) {
-            e[j].display();
-        }
-    }
+function updateModeUI() {
+    const labels = ['Free', 'Select Anchors', 'Corres-points', 'Corres-lines'];
+    const el = document.getElementById('mode-indicator');
+    if (el) el.textContent = `Mode: ${labels[mode]}`;
+
+    const modeButtons = [null, 'btn-select-anchor', 'btn-corres-points', 'btn-corres-lines'];
+    document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+    if (modeButtons[mode]) document.getElementById(modeButtons[mode])?.classList.add('active');
 }
 
 function go_get() {
-    var base_url = 'https://www.youtube.com/embed?listType=search&list=';
-    var search_field = document.getElementById('yourtextfield').value;
-    var target_url = base_url + search_field;
-    var ifr = document.getElementById('existing-iframe-example');
-    ifr.src = target_url;
-    return false;
+    const search = document.getElementById('yourtextfield').value;
+    document.getElementById('existing-iframe-example').src =
+        `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(search)}`;
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    document.getElementById('search-form').addEventListener('submit', function (e) {
-        e.preventDefault();
-        go_get();
-    });
+// --- Bootstrap ---
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('search-form').addEventListener('submit', e => { e.preventDefault(); go_get(); });
     document.getElementById('btn-select-anchor').addEventListener('click', chooseAnchor);
     document.getElementById('btn-get-h').addEventListener('click', getH);
     document.getElementById('btn-corres-points').addEventListener('click', corres_points);
