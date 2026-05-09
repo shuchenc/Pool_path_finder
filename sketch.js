@@ -202,14 +202,38 @@ function chooseAnchor()  { points.length = 0; points2.length = 0; hComputed = fa
 function corres_points() { mode = 2; updateModeUI(); }
 function corres_lines()  { mode = 3; updateModeUI(); }
 
+function undoLast() {
+    if (mode === 1) {
+        // Phase 2 active — undo last reference anchor first
+        if (points2.length > 0) {
+            if (points2.length === 4 || points2.length === 2) lines2.pop();
+            points2.pop();
+        } else if (points.length > 0) {
+            if (points.length === 4 || points.length === 2) lines.pop();
+            points.pop();
+        }
+    } else if (mode === 2) {
+        if (corBalls.length > 0) { corBalls.pop(); corBalls2.pop(); }
+    } else if (mode === 3) {
+        if (clicked) {
+            // Cancel the in-progress line (first endpoint placed, second not yet)
+            clicked = false;
+        } else if (corLines.length > 0) {
+            corLines.pop(); corLines2.pop();
+        }
+    }
+    updateModeUI();
+}
+
 function clearALL() {
     clear();
     background('rgba(200,200,200,0.2)');
     loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0, 180, 320));
     for (const group of allElems) group.length = 0;
     clicked = false;
-    hComputed = false;
     mode = 0;
+    // hComputed is intentionally preserved — H remains valid after clearing drawings.
+    // It is only invalidated when the user explicitly re-selects anchors (chooseAnchor).
     updateModeUI();
 }
 
@@ -229,6 +253,15 @@ function updateModeUI() {
     document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
     if (modeButtons[mode]) document.getElementById(modeButtons[mode])?.classList.add('active');
 
+    const undoBtn = document.getElementById('btn-undo');
+    if (undoBtn) {
+        const canUndo =
+            (mode === 1 && (points.length > 0 || points2.length > 0)) ||
+            (mode === 2 && corBalls.length > 0) ||
+            (mode === 3 && (clicked || corLines.length > 0));
+        undoBtn.disabled = !canUndo;
+    }
+
     updateCanvasInteractivity();
     updateHelpText();
 }
@@ -245,9 +278,9 @@ function updateHelpText() {
             el.className = 'help-text success';
             el.textContent = '✓ Homography computed! Switch to Corres-points or Corres-lines to verify the mapping.';
         } else if (points.length < 4) {
-            el.textContent = `Step 1 of 2 — Click the ${CORNER_LABELS[points.length]} corner of the pool table on the VIDEO (${points.length}/4 done).`;
+            el.textContent = `Step 1 of 2 — Click the ${CORNER_LABELS[points.length]} corner of the pool table on the VIDEO (${points.length}/4 done). Use Undo to remove the last point.`;
         } else if (points2.length < 4) {
-            el.textContent = `Step 2 of 2 — Click the ${CORNER_LABELS[points2.length]} corner of the pool table on the REFERENCE image in the same clockwise order (${points2.length}/4 done).`;
+            el.textContent = `Step 2 of 2 — Click the ${CORNER_LABELS[points2.length]} corner of the pool table on the REFERENCE image in the same clockwise order (${points2.length}/4 done). Use Undo to remove the last point.`;
         } else {
             el.textContent = 'All 4 anchor pairs selected — click "Get H" to compute the homography.';
         }
@@ -265,10 +298,10 @@ function updateHelpText() {
             el.textContent = '⚠ Homography not computed yet — select anchors first, then click "Get H".';
         } else if (clicked) {
             el.className = 'help-text success';
-            el.textContent = '✓ H computed — click the second endpoint to complete the line.';
+            el.textContent = '✓ H computed — click the second endpoint to complete the line. Use Undo to cancel.';
         } else {
             el.className = 'help-text success';
-            el.textContent = '✓ H computed — click a first endpoint on either image to start a line.';
+            el.textContent = '✓ H computed — click a first endpoint on either image to start a line. Use Undo to remove the last line.';
         }
     }
 }
@@ -310,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-get-h').addEventListener('click', getH);
     document.getElementById('btn-corres-points').addEventListener('click', corres_points);
     document.getElementById('btn-corres-lines').addEventListener('click', corres_lines);
+    document.getElementById('btn-undo').addEventListener('click', undoLast);
     document.getElementById('btn-clear').addEventListener('click', clearALL);
     updateHelpText();
 });

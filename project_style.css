@@ -49,13 +49,24 @@ button {
     transition: background-color 0.15s;
 }
 
-button:hover  { background-color: #4a7fc1; }
-button.active { background-color: #1a5fa8; outline: 2px solid #0d3d6b; }
+button:hover           { background-color: #4a7fc1; }
+button.active          { background-color: #1a5fa8; outline: 2px solid #0d3d6b; }
+button:disabled        { background-color: #bdc3c7; cursor: not-allowed; opacity: 0.6; }
+button:disabled:hover  { background-color: #bdc3c7; }
 
-#btn-clear {
-    background-color: #c0392b;
-}
+#btn-undo       { background-color: #7f8c8d; }
+#btn-undo:hover { background-color: #636e72; }
+
+#btn-clear       { background-color: #c0392b; }
 #btn-clear:hover { background-color: #a93226; }
+
+.controls-sep {
+    display: inline-block;
+    width: 1px;
+    background: #b0bec5;
+    margin: 0 2px;
+    align-self: stretch;
+}
 
 .mode-indicator {
     display: inline-block;
