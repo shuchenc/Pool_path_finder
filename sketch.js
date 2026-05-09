@@ -143,6 +143,22 @@ function getH() {
     ];
     invH = numeric.inv(H);
     hComputed = true;
+
+    // DEBUG — remove before shipping
+    console.group('Homography debug');
+    console.log('Video points (src):');
+    points.forEach((p, i) => console.log(`  [${i}] video  (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`));
+    console.log('Reference points (dst):');
+    points2.forEach((p, i) => console.log(`  [${i}] ref    (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`));
+    console.log('H =', H.map(r => r.map(v => v.toFixed(6))));
+    console.log('Reprojection check (src → H → should equal dst):');
+    points.forEach((p, i) => {
+        const mapped = applyH(H, p.x, p.y);
+        const dst = points2[i];
+        console.log(`  [${i}] mapped (${mapped[0].toFixed(1)}, ${mapped[1].toFixed(1)})  expected (${dst.x.toFixed(1)}, ${dst.y.toFixed(1)})  err=(${(mapped[0]-dst.x).toFixed(2)}, ${(mapped[1]-dst.y).toFixed(2)})`);
+    });
+    console.groupEnd();
+
     updateModeUI();
 }
 
