@@ -32,7 +32,6 @@ function setup() {
     canvas.position(rect.left + window.scrollX + 4, rect.top + window.scrollY + 4);
     // canvas.style('z-index', '-1');
     loadImage("images/PoolTableReferenceTop.jpg", function(img) {
-        console.log('aaa')
         image(img, 660, 0);
     });
 }
