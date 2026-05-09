@@ -13,7 +13,10 @@ const allElems = [balls, balls2, points, points2, lines, lines2, corBalls, corBa
 let mode = 0;                        // 0=free 1=anchor 2=corres-points 3=corres-lines
 let lineClicks  = [[], []];
 let lineClicks2 = [[], []];
-let clicked = false;
+let clicked     = false;
+let hComputed   = false;
+
+const CORNER_LABELS = ['top-left', 'top-right', 'bottom-right', 'bottom-left'];
 
 // Homography matrices (numeric.js plain arrays)
 let A    = numeric.rep([8, 9], 0);
@@ -28,7 +31,7 @@ function setup() {
     const iframe = document.getElementById('existing-iframe-example');
     const rect = iframe.getBoundingClientRect();
     canvas.position(rect.left + window.scrollX + 4, rect.top + window.scrollY + 4);
-    loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0));
+    loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0, 180, 320));
     updateCanvasInteractivity();
 }
 
@@ -54,12 +57,14 @@ function mousePressed() {
 // --- Mode handlers ---
 
 function handleAnchorClick(oX, oY) {
-    if (inVideoArea(oX, oY)) {
+    // Phase 1: collect all 4 video corners first (enforces consistent ordering)
+    if (points.length < 4 && inVideoArea(oX, oY)) {
         const p = new Ball(oX, oY, 3, color(points.length * 60));
         points.push(p);
         if (points.length === 2) lines.push(new Line(points[0].x, points[0].y, points[1].x, points[1].y, color(100, 0, 0)));
         if (points.length === 4) lines.push(new Line(points[2].x, points[2].y, points[3].x, points[3].y, color(0, 100, 0)));
-    } else if (inReferenceArea(oX, oY)) {
+    // Phase 2: collect corresponding 4 reference corners in the same order
+    } else if (points.length >= 4 && points2.length < 4 && inReferenceArea(oX, oY)) {
         const p = new Ball(oX, oY, 1, color(points2.length * 60));
         points2.push(p);
         if (points2.length === 2) lines2.push(new Line(points2[0].x, points2[0].y, points2[1].x, points2[1].y, color(100, 0, 0)));
@@ -137,7 +142,8 @@ function getH() {
         [hs[6][7], hs[7][7], hs[8][7]],
     ];
     invH = numeric.inv(H);
-    alert('Transformation matrix calculated!');
+    hComputed = true;
+    updateModeUI();
 }
 
 // --- Helpers ---
@@ -150,16 +156,17 @@ function applyH(mat, x, y) {
 function inVideoArea(x, y)     { return x >= 0 && x <= 640 && y >= 0 && y <= 320; }
 function inReferenceArea(x, y) { return x >= 660 && x <= 840 && y >= 0 && y <= 320; }
 
-function chooseAnchor()  { points.length = 0; points2.length = 0; mode = 1; updateModeUI(); }
+function chooseAnchor()  { points.length = 0; points2.length = 0; hComputed = false; mode = 1; updateModeUI(); }
 function corres_points() { mode = 2; updateModeUI(); }
 function corres_lines()  { mode = 3; updateModeUI(); }
 
 function clearALL() {
     clear();
     background('rgba(200,200,200,0.2)');
-    loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0));
+    loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0, 180, 320));
     for (const group of allElems) group.length = 0;
     clicked = false;
+    hComputed = false;
     mode = 0;
     updateModeUI();
 }
@@ -170,8 +177,11 @@ function updateCanvasInteractivity() {
 
 function updateModeUI() {
     const labels = ['Free', 'Select Anchors', 'Corres-points', 'Corres-lines'];
-    const el = document.getElementById('mode-indicator');
-    if (el) el.textContent = `Mode: ${labels[mode]}`;
+    const label = document.getElementById('mode-label');
+    if (label) label.textContent = `Mode: ${labels[mode]}`;
+
+    const badge = document.getElementById('h-badge');
+    if (badge) badge.className = hComputed ? 'h-badge' : 'h-badge hidden';
 
     const modeButtons = [null, 'btn-select-anchor', 'btn-corres-points', 'btn-corres-lines'];
     document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
@@ -184,22 +194,40 @@ function updateModeUI() {
 function updateHelpText() {
     const el = document.getElementById('help-text');
     if (!el) return;
+    el.className = 'help-text';
+
     if (mode === 0) {
         el.textContent = 'Free mode — click the video to play/pause. Select a mode above to begin.';
     } else if (mode === 1) {
-        const vn = points.length, rn = points2.length;
-        if (vn >= 4 && rn >= 4) {
-            el.textContent = 'All 4 anchor pairs selected! Click "Get H" to compute the homography.';
+        if (hComputed) {
+            el.className = 'help-text success';
+            el.textContent = '✓ Homography computed! Switch to Corres-points or Corres-lines to verify the mapping.';
+        } else if (points.length < 4) {
+            el.textContent = `Step 1 of 2 — Click the ${CORNER_LABELS[points.length]} corner of the pool table on the VIDEO (${points.length}/4 done).`;
+        } else if (points2.length < 4) {
+            el.textContent = `Step 2 of 2 — Click the ${CORNER_LABELS[points2.length]} corner of the pool table on the REFERENCE image in the same clockwise order (${points2.length}/4 done).`;
         } else {
-            const next = vn <= rn ? 'VIDEO' : 'REFERENCE image';
-            el.textContent = `Select Anchors — Video: ${vn}/4 corners, Reference: ${rn}/4 corners. Click on the ${next} next.`;
+            el.textContent = 'All 4 anchor pairs selected — click "Get H" to compute the homography.';
         }
     } else if (mode === 2) {
-        el.textContent = 'Corres-points — click any point on the video or reference image to see its mapped location on the other.';
+        if (!hComputed) {
+            el.className = 'help-text warning';
+            el.textContent = '⚠ Homography not computed yet — select anchors first, then click "Get H".';
+        } else {
+            el.className = 'help-text success';
+            el.textContent = '✓ H computed — click any point on the VIDEO or REFERENCE image to see its mapped counterpart.';
+        }
     } else if (mode === 3) {
-        el.textContent = clicked
-            ? 'Corres-lines — click the second point to complete the line.'
-            : 'Corres-lines — click a first point on either image to start a line.';
+        if (!hComputed) {
+            el.className = 'help-text warning';
+            el.textContent = '⚠ Homography not computed yet — select anchors first, then click "Get H".';
+        } else if (clicked) {
+            el.className = 'help-text success';
+            el.textContent = '✓ H computed — click the second endpoint to complete the line.';
+        } else {
+            el.className = 'help-text success';
+            el.textContent = '✓ H computed — click a first endpoint on either image to start a line.';
+        }
     }
 }
 

@@ -69,6 +69,20 @@ button.active { background-color: #1a5fa8; outline: 2px solid #0d3d6b; }
     color: #2c3e50;
 }
 
+.h-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    background: #e8f5e9;
+    border: 1px solid #66bb6a;
+    border-radius: 10px;
+    font-size: 11px;
+    color: #1b5e20;
+    font-weight: bold;
+    vertical-align: middle;
+}
+.h-badge.hidden { display: none; }
+
 .help-text {
     margin-top: 8px;
     padding: 8px 12px;
@@ -79,6 +93,8 @@ button.active { background-color: #1a5fa8; outline: 2px solid #0d3d6b; }
     color: #5a4500;
     min-height: 20px;
 }
+.help-text.success { background: #e8f5e9; border-color: #66bb6a; color: #1b5e20; }
+.help-text.warning { background: #fff3e0; border-color: #ff9800; color: #e65100; }
 
 .detection-status {
     margin-top: 8px;
