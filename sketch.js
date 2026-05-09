@@ -29,6 +29,7 @@ function setup() {
     const rect = iframe.getBoundingClientRect();
     canvas.position(rect.left + window.scrollX + 4, rect.top + window.scrollY + 4);
     loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0));
+    updateCanvasInteractivity();
 }
 
 function draw() {
@@ -41,11 +42,7 @@ function mousePressed() {
     const oX = mouseX;
     const oY = mouseY;
 
-    if (mode === 0) {
-        if (inCanvas(oX, oY)) {
-            balls.push(new Ball(oX, oY, 3, color(255)));
-        }
-    } else if (mode === 1) {
+    if (mode === 1) {
         handleAnchorClick(oX, oY);
     } else if (mode === 2) {
         handleCorresPointClick(oX, oY);
@@ -68,6 +65,7 @@ function handleAnchorClick(oX, oY) {
         if (points2.length === 2) lines2.push(new Line(points2[0].x, points2[0].y, points2[1].x, points2[1].y, color(100, 0, 0)));
         if (points2.length === 4) lines2.push(new Line(points2[2].x, points2[2].y, points2[3].x, points2[3].y, color(0, 100, 0)));
     }
+    updateModeUI();
 }
 
 function handleCorresPointClick(oX, oY) {
@@ -109,6 +107,7 @@ function handleCorresLineClick(oX, oY) {
             pushLinePair();
         }
     }
+    updateHelpText();
 }
 
 function pushLinePair() {
@@ -148,7 +147,6 @@ function applyH(mat, x, y) {
     return [v[0][0] / v[2][0], v[1][0] / v[2][0]];
 }
 
-function inCanvas(x, y)        { return x >= 0 && x <= 840 && y >= 0 && y <= 320; }
 function inVideoArea(x, y)     { return x >= 0 && x <= 640 && y >= 0 && y <= 320; }
 function inReferenceArea(x, y) { return x >= 660 && x <= 840 && y >= 0 && y <= 320; }
 
@@ -161,8 +159,13 @@ function clearALL() {
     background('rgba(200,200,200,0.2)');
     loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0));
     for (const group of allElems) group.length = 0;
+    clicked = false;
     mode = 0;
     updateModeUI();
+}
+
+function updateCanvasInteractivity() {
+    if (canvas) canvas.elt.style.pointerEvents = mode === 0 ? 'none' : 'auto';
 }
 
 function updateModeUI() {
@@ -173,12 +176,45 @@ function updateModeUI() {
     const modeButtons = [null, 'btn-select-anchor', 'btn-corres-points', 'btn-corres-lines'];
     document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
     if (modeButtons[mode]) document.getElementById(modeButtons[mode])?.classList.add('active');
+
+    updateCanvasInteractivity();
+    updateHelpText();
+}
+
+function updateHelpText() {
+    const el = document.getElementById('help-text');
+    if (!el) return;
+    if (mode === 0) {
+        el.textContent = 'Free mode — click the video to play/pause. Select a mode above to begin.';
+    } else if (mode === 1) {
+        const vn = points.length, rn = points2.length;
+        if (vn >= 4 && rn >= 4) {
+            el.textContent = 'All 4 anchor pairs selected! Click "Get H" to compute the homography.';
+        } else {
+            const next = vn <= rn ? 'VIDEO' : 'REFERENCE image';
+            el.textContent = `Select Anchors — Video: ${vn}/4 corners, Reference: ${rn}/4 corners. Click on the ${next} next.`;
+        }
+    } else if (mode === 2) {
+        el.textContent = 'Corres-points — click any point on the video or reference image to see its mapped location on the other.';
+    } else if (mode === 3) {
+        el.textContent = clicked
+            ? 'Corres-lines — click the second point to complete the line.'
+            : 'Corres-lines — click a first point on either image to start a line.';
+    }
 }
 
 function go_get() {
-    const search = document.getElementById('yourtextfield').value;
-    document.getElementById('existing-iframe-example').src =
-        `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(search)}`;
+    const raw = document.getElementById('yourtextfield').value.trim();
+
+    const watchMatch = raw.match(/[?&]v=([A-Za-z0-9_-]{11})/);
+    const shortMatch = raw.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+    const embedMatch = raw.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
+    const bareId     = /^[A-Za-z0-9_-]{11}$/.test(raw) ? raw : null;
+    const videoId    = (watchMatch || shortMatch || embedMatch || [null, bareId])[1];
+
+    document.getElementById('existing-iframe-example').src = videoId
+        ? `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1`
+        : `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(raw)}`;
 }
 
 // --- Bootstrap ---
@@ -190,4 +226,5 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-corres-points').addEventListener('click', corres_points);
     document.getElementById('btn-corres-lines').addEventListener('click', corres_lines);
     document.getElementById('btn-clear').addEventListener('click', clearALL);
+    updateHelpText();
 });
