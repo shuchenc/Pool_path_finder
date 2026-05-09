@@ -1,4 +1,5 @@
 let canvas;
+let refImg = null;  // cached reference image so draw() can repaint each frame
 
 // Drawing element collections
 const balls       = [], balls2      = [];
@@ -27,15 +28,18 @@ let invH = numeric.rep([3, 3], 1);
 
 function setup() {
     canvas = createCanvas(840, 320);
-    background('rgba(200,200,200,0.2)');
     const iframe = document.getElementById('existing-iframe-example');
     const rect = iframe.getBoundingClientRect();
     canvas.position(rect.left + window.scrollX + 4, rect.top + window.scrollY + 4);
-    loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0, 180, 320));
+    loadImage('images/PoolTableReferenceTop.jpg', img => { refImg = img; });
     updateCanvasInteractivity();
 }
 
 function draw() {
+    // Clear and repaint every frame so removing elements (undo/clear) is reflected immediately
+    clear();
+    background('rgba(200,200,200,0.2)');
+    if (refImg) image(refImg, 660, 0, 180, 320);
     for (const group of allElems) {
         for (const elem of group) elem.display();
     }
@@ -226,9 +230,6 @@ function undoLast() {
 }
 
 function clearALL() {
-    clear();
-    background('rgba(200,200,200,0.2)');
-    loadImage('images/PoolTableReferenceTop.jpg', img => image(img, 660, 0, 180, 320));
     for (const group of allElems) group.length = 0;
     clicked = false;
     mode = 0;
