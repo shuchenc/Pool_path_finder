@@ -122,43 +122,93 @@ function pushLinePair() {
 
 // --- Homography computation ---
 
+function normalizePts(pts) {
+    const n = pts.length;
+    let cx = 0, cy = 0;
+    for (const p of pts) { cx += p.x; cy += p.y; }
+    cx /= n; cy /= n;
+    let meanD = 0;
+    for (const p of pts) meanD += Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2);
+    meanD /= n;
+    const s = Math.SQRT2 / meanD;
+    return {
+        T: [[s, 0, -s * cx], [0, s, -s * cy], [0, 0, 1]],
+        normPts: pts.map(p => ({ x: s * (p.x - cx), y: s * (p.y - cy) })),
+    };
+}
+
 function getH() {
     if (points.length < 4 || points2.length < 4) {
         alert('Not enough points selected!');
         return;
     }
+
+    // Normalize coordinates before DLT for numerical stability
+    const { T: T1, normPts: np1 } = normalizePts(points);
+    const { T: T2, normPts: np2 } = normalizePts(points2);
+
     A = numeric.rep([8, 9], 0);
     for (let r = 0; r < 4; r++) {
-        const x = points[r].x, y = points[r].y;
-        const xp = points2[r].x, yp = points2[r].y;
+        const x = np1[r].x, y = np1[r].y;
+        const xp = np2[r].x, yp = np2[r].y;
         A[2*r]   = [-x, -y, -1,  0,  0,  0, x*xp, y*xp, xp];
         A[2*r+1] = [ 0,  0,  0, -x, -y, -1, x*yp, y*yp, yp];
     }
     const aTrans = numeric.transpose(A);
-    const { U: hs } = numeric.svd(aTrans);
-    H = [
-        [hs[0][7], hs[1][7], hs[2][7]],
-        [hs[3][7], hs[4][7], hs[5][7]],
-        [hs[6][7], hs[7][7], hs[8][7]],
-    ];
-    invH = numeric.inv(H);
-    hComputed = true;
+    const { U: hs, S: sv } = numeric.svd(aTrans);
 
-    // DEBUG — remove before shipping
-    console.group('Homography debug');
-    console.log('Video points (src):');
-    points.forEach((p, i) => console.log(`  [${i}] video  (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`));
-    console.log('Reference points (dst):');
-    points2.forEach((p, i) => console.log(`  [${i}] ref    (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`));
-    console.log('H =', H.map(r => r.map(v => v.toFixed(6))));
-    console.log('Reprojection check (src → H → should equal dst):');
-    points.forEach((p, i) => {
-        const mapped = applyH(H, p.x, p.y);
-        const dst = points2[i];
-        console.log(`  [${i}] mapped (${mapped[0].toFixed(1)}, ${mapped[1].toFixed(1)})  expected (${dst.x.toFixed(1)}, ${dst.y.toFixed(1)})  err=(${(mapped[0]-dst.x).toFixed(2)}, ${(mapped[1]-dst.y).toFixed(2)})`);
-    });
+    // DEBUG: diagnose U shape and SV ordering
+    console.group('SVD diagnostic');
+    console.log(`U shape: ${hs.length}×${hs[0].length}`);
+    console.log('Singular values:', sv.map((v, i) => `[${i}]=${v.toFixed(6)}`).join('  '));
+
+    // Try every column and log reprojection — the null vector gives ~0 error
+    for (let col = 0; col < hs[0].length; col++) {
+        const Htry = numeric.dotMMsmall(
+            numeric.inv(T2),
+            numeric.dotMMsmall(
+                [[hs[0][col], hs[1][col], hs[2][col]],
+                 [hs[3][col], hs[4][col], hs[5][col]],
+                 [hs[6][col], hs[7][col], hs[8][col]]],
+                T1
+            )
+        );
+        const totalErr = points.reduce((s, p, i) => {
+            const m = applyH(Htry, p.x, p.y);
+            return s + Math.hypot(m[0] - points2[i].x, m[1] - points2[i].y);
+        }, 0);
+        console.log(`  col ${col}: total reprojection error = ${totalErr.toFixed(4)}`);
+    }
+
+    // Select column with smallest total reprojection error (robust to SV ordering)
+    let bestCol = 0, bestErr = Infinity;
+    for (let col = 0; col < hs[0].length; col++) {
+        const Htry = numeric.dotMMsmall(
+            numeric.inv(T2),
+            numeric.dotMMsmall(
+                [[hs[0][col], hs[1][col], hs[2][col]],
+                 [hs[3][col], hs[4][col], hs[5][col]],
+                 [hs[6][col], hs[7][col], hs[8][col]]],
+                T1
+            )
+        );
+        const err = points.reduce((s, p, i) => {
+            const m = applyH(Htry, p.x, p.y);
+            return s + Math.hypot(m[0] - points2[i].x, m[1] - points2[i].y);
+        }, 0);
+        if (err < bestErr) { bestErr = err; bestCol = col; }
+    }
+    console.log(`→ Selected column ${bestCol} (total error: ${bestErr.toFixed(4)})`);
     console.groupEnd();
 
+    const Hn = [
+        [hs[0][bestCol], hs[1][bestCol], hs[2][bestCol]],
+        [hs[3][bestCol], hs[4][bestCol], hs[5][bestCol]],
+        [hs[6][bestCol], hs[7][bestCol], hs[8][bestCol]],
+    ];
+    H    = numeric.dotMMsmall(numeric.inv(T2), numeric.dotMMsmall(Hn, T1));
+    invH = numeric.inv(H);
+    hComputed = true;
     updateModeUI();
 }
 
