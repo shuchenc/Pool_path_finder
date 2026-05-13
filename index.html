@@ -18,7 +18,7 @@
   <h2>Pool Path Finder — Shucheng Chao</h2>
 
   <form id="search-form">
-    <input type="text" id="yourtextfield" placeholder="Search YouTube playlists" />
+    <input type="text" id="yourtextfield" placeholder="Paste a YouTube URL or search by keyword" />
     <input type="submit" value="Search" />
   </form>
   <br>
@@ -31,15 +31,22 @@
   ></iframe>
   <br>
 
-  <div id="mode-indicator" class="mode-indicator">Mode: Free</div>
+  <div id="mode-indicator" class="mode-indicator">
+    <span id="mode-label">Mode: Free</span>
+    <span id="h-badge" class="h-badge hidden">✓ H computed</span>
+  </div>
 
   <div class="controls">
     <button id="btn-select-anchor">Select Anchors</button>
     <button id="btn-get-h">Get H</button>
     <button id="btn-corres-points">Draw Corres-points</button>
     <button id="btn-corres-lines">Draw Corres-lines</button>
-    <button id="btn-clear">Clear</button>
+    <span class="controls-sep"></span>
+    <button id="btn-undo" disabled>Undo</button>
+    <button id="btn-clear">Clear All</button>
   </div>
+
+  <div id="help-text" class="help-text"></div>
 
   <div id="detection-status" class="detection-status"></div>
 </body>
