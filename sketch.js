@@ -88,6 +88,7 @@ function handleCorresPointClick(oX, oY) {
         corBalls.push(new Ball(c1[0], c1[1], 3, col));
         corBalls2.push(new Ball(oX, oY, 4, col));
     }
+    updateModeUI();
 }
 
 function handleCorresLineClick(oX, oY) {
@@ -116,7 +117,7 @@ function handleCorresLineClick(oX, oY) {
             pushLinePair();
         }
     }
-    updateHelpText();
+    updateModeUI();
 }
 
 function pushLinePair() {
