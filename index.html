@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pool Path Finder</title>
+  <link rel="stylesheet" href="project_style.css">
+  <!-- p5.js 1.9.4 — includes DOM, replaces p5.js + deprecated p5.dom.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <!-- numeric.js for SVD / matrix ops used in homography computation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+  <script src="balls.js"></script>
+  <script src="sketch.js"></script>
+  <script src="youtubeAPI.js"></script>
+  <script src="detection.js"></script>
+</head>
+<body>
+  <h2>Pool Path Finder — Shucheng Chao</h2>
+
+  <form id="search-form">
+    <input type="text" id="yourtextfield" placeholder="Search YouTube playlists" />
+    <input type="submit" value="Search" />
+  </form>
+  <br>
+
+  <iframe id="existing-iframe-example"
+          width="640" height="360"
+          src="https://www.youtube.com/embed/3OCYkF1yp-Q?enablejsapi=1&controls=1"
+          frameborder="0"
+          style="border: solid 4px #37474F"
+  ></iframe>
+  <br>
+
+  <div id="mode-indicator" class="mode-indicator">Mode: Free</div>
+  <br>
+
+  <button id="btn-select-anchor">Select Anchors</button>
+  <button id="btn-get-h">Get H</button>
+  <button id="btn-corres-points">Draw Corres-points</button>
+  <button id="btn-corres-lines">Draw Corres-lines</button>
+  <button id="btn-clear">Clear</button>
+
+  <div id="detection-status" class="detection-status"></div>
+</body>
+</html>

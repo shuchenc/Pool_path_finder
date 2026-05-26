@@ -27,12 +27,11 @@ function setup() {
     canvas = createCanvas(840,320);
     background('rgba(200,200,200,0.2)');
     //background(poolTable, 100);
-    var pos = $("#existing-iframe-example").offset();
-    console.log(pos);
-    canvas.position(pos["left"]+4,pos["top"]+4);
+    const iframe = document.getElementById('existing-iframe-example');
+    const rect = iframe.getBoundingClientRect();
+    canvas.position(rect.left + window.scrollX + 4, rect.top + window.scrollY + 4);
     // canvas.style('z-index', '-1');
     loadImage("images/PoolTableReferenceTop.jpg", function(img) {
-        console.log('aaa')
         image(img, 660, 0);
     });
 }
@@ -182,7 +181,7 @@ function getH() {
         A[2*r+1][7] = points[r].y * points2[r].y; //yy'
         A[2*r+1][8] = points2[r].y; //y'
     }
-    print(A);
+    console.log(A);
     var A_trans = numeric.transpose(A); //numeric.js requires m>n
     var result = numeric.svd(A_trans);
     var hs = result["U"]; //U for A_trans = V_trans for A
@@ -225,10 +224,22 @@ function draw() {
 }
 
 function go_get() {
-    var base_url = 'http://www.youtube.com/embed?listType=search&list=';
+    var base_url = 'https://www.youtube.com/embed?listType=search&list=';
     var search_field = document.getElementById('yourtextfield').value;
     var target_url = base_url + search_field;
     var ifr = document.getElementById('existing-iframe-example');
     ifr.src = target_url;
     return false;
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('search-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        go_get();
+    });
+    document.getElementById('btn-select-anchor').addEventListener('click', chooseAnchor);
+    document.getElementById('btn-get-h').addEventListener('click', getH);
+    document.getElementById('btn-corres-points').addEventListener('click', corres_points);
+    document.getElementById('btn-corres-lines').addEventListener('click', corres_lines);
+    document.getElementById('btn-clear').addEventListener('click', clearALL);
+});
